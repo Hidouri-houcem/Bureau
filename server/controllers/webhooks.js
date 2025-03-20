@@ -62,20 +62,12 @@ const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY)
 export const stripeWebhooks = async(request,response )=>{
     const sig = request.headers['stripe-signature'];
 
-    console.log("📢 Webhook Stripe reçu !");
-    console.log("Headers:", request.headers);
 
     let event;
 
     try {
         event = Stripe.Webhooks.constructEvent(request.body,sig,process.env.STRIPE_WEBHOOK_SECRET);
-
-        console.log("✅ Événement Stripe validé :", event.type);
-
     } catch (error) {
-
-        console.log("❌ Erreur de validation du webhook:", error.message);
-
         response.status(400).send(`Webhook Error: ${error.message}`);
     }
 
@@ -89,51 +81,23 @@ export const stripeWebhooks = async(request,response )=>{
             })
 
 
-            console.log("📦 Sessions Stripe récupérées :", session.data);
-            if (!session.data || session.data.length === 0) {
-                console.log("❌ Aucune session trouvée !");
-                return response.status(400).send("No session found for payment intent.");
-            }
-
-
-
-
             const {purchaseId} = session.data[0].metadata;
 
             const purchaseData = await Purchase.findById(purchaseId)
 
-            if (!purchaseData) {
-                console.log("❌ Aucun achat trouvé avec cet ID !");
-                return response.status(400).send("Purchase not found.");
-            }
-            console.log("✅ Achat trouvé :", purchaseData);
 
 
             const userData = await User.findById(purchaseData.userId)
 
-            if (!userData) {
-                console.log("❌ Utilisateur introuvable !");
-                return response.status(400).send("User not found.");
-            }
-            console.log("✅ Utilisateur trouvé :", userData);
-
-
             const courseData = await Course.findById(purchaseData.courseId.toString())
             
 
-            if (!courseData) {
-                console.log("❌ Cours introuvable !");
-                return response.status(400).send("Course not found.");
-            }
-            console.log("✅ Cours trouvé :", courseData);
 
 
             courseData.enrolledStudents.push(userData)
-            console.log("📚 Étudiants inscrits :", courseData.enrolledStudents);
             await courseData.save()
             
             userData.enrolledCourses.push(courseData._id)
-            console.log("📋 Cours inscrits :", userData.enrolledCourses);
             await userData.save()
 
             purchaseData.status = 'completed'
